@@ -13,7 +13,7 @@ namespace RFHRestClient.Config
         public HttpAuthType AuthType { get; set; }
         public int Timeout { get; set; }
         public int Retries { get; set; }
-        public MediaTypeWithQualityHeaderValue MediaType { get; set; }
+        public MediaTypeWithQualityHeaderValue AcceptContentType { get; set; }
 
     }
 }

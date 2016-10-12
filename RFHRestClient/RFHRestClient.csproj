@@ -63,6 +63,7 @@
     <Compile Include="Authentication\Oauth2.cs" />
     <Compile Include="Authentication\Oauth2Token.cs" />
     <Compile Include="Authentication\HttpAuthType.cs" />
+    <Compile Include="CommonMediaTypes\MediaType.cs" />
     <Compile Include="Config\Configuration.cs" />
     <Compile Include="Config\DefaultConfig.cs" />
     <Compile Include="IRestClient.cs" />

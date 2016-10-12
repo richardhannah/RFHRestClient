@@ -38,7 +38,7 @@ namespace RFHRestClient
                 }
                 catch(AggregateException ex)
                 {                    
-                    throw new HttpRequestException("Request timed out",ex);
+                    throw new HttpRequestException("Request timed out",ex);//TODO - this needs sorted out
                 }
             }
 
@@ -68,7 +68,7 @@ namespace RFHRestClient
             httpClient = new HttpClient();
             httpClient.BaseAddress = new Uri(Configuration.BaseUrl);
             httpClient.DefaultRequestHeaders.Accept.Clear();
-            httpClient.DefaultRequestHeaders.Accept.Add(Configuration.MediaType);
+            httpClient.DefaultRequestHeaders.Accept.Add(Configuration.AcceptContentType);
             httpClient.Timeout = new TimeSpan(0, 0, Configuration.Timeout);
             httpClient.DefaultRequestHeaders.Authorization = Configuration.AuthType != null ? Configuration.AuthType.Authorization : null;
         }
