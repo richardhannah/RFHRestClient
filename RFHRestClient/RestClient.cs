@@ -1,209 +1,77 @@
 ﻿using log4net;
-using RFHRestClient.Auth;
 using System;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Net;
+using RFHRestClient.Config;
 
 namespace RFHRestClient
 {
-    class RestClient
+    public class RestClient : IRestClient
     {
+        #region Private member vars
+        private HttpClient httpClient;
+        #endregion
 
-        private static readonly ILog LOGGER = LogManager.GetLogger(typeof(RestClient));
-        public String BaseUrl { get; set; }
-        public HttpAuthType AuthType { get; set; }
+        #region Properties
+        public Configuration Configuration { get; set; }
+        #endregion
 
-        private int retries;
+        #region Constructors
+        public RestClient() {}
 
-        public RestClient(string baseUrl, HttpAuthType authType)
+        public RestClient (Configuration config)
         {
-            BaseUrl = baseUrl;
-            AuthType = authType;
+            this.Configuration = config;
+            ConfigureClient();
         }
+        #endregion
 
-        public HttpResponseMessage get(string resource)
+        #region Public Methods
+        public HttpResponseMessage Get(Uri uri)
         {
-            LOGGER.Debug("getting resource : " + resource);
-
             HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
-            using (var client = new HttpClient())
+            
+            using (httpClient)
             {
-                client.BaseAddress = new Uri(BaseUrl);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                if (AuthType != null)
-                {
-                    client.DefaultRequestHeaders.Add("Authorization", AuthType.Authorization);
+                try {
+                    httpResponseMessage = httpClient.GetAsync(uri).Result;
                 }
-                client.Timeout = new TimeSpan(0, 0, 30);
-
-                try
-                {
-                    httpResponseMessage = client.GetAsync(resource).Result;
-                }
-                catch (AggregateException ex)
-                {
-
-                    throw new HttpRequestException("Request timed out", ex);
+                catch(AggregateException ex)
+                {                    
+                    throw new HttpRequestException("Request timed out",ex);
                 }
             }
 
-
-            if (httpResponseMessage.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                LOGGER.Debug("Authorization failed");
-                if (retries < 3)
-                {
-                    AuthType.Authenticate();
-                    retries++;
-                    LOGGER.Debug($"Retrying - attempt {retries}");
-                    get(resource);
+            if(httpResponseMessage.StatusCode == HttpStatusCode.Unauthorized)
+            {                
+                if(Configuration.Retries < 3)
+                {                    
+                    Configuration.AuthType.Authenticate();
+                    Configuration.Retries++;
+                    Get(uri);
                 }
             }
-            retries = 0;
+            Configuration.Retries = 0;            
 
             return httpResponseMessage;
         }
 
-        public HttpResponseMessage post(string resource, string body)
+        public T GetObject<T>()
         {
-            HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
-            StringContent queryString = new StringContent(body);
-            queryString.Headers.Clear();
-            queryString.Headers.Add("Content-Type", "application/json");
-
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri(BaseUrl);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                if (AuthType != null)
-                {
-                    client.DefaultRequestHeaders.Add("Authorization", AuthType.Authorization);
-                }
-                client.Timeout = new TimeSpan(0, 0, 30);
-
-                try
-                {
-                    httpResponseMessage = client.PostAsync(resource, queryString).Result;
-                }
-                catch (AggregateException ex)
-                {
-
-                    throw new HttpRequestException("Request timed out", ex);
-                }
-            }
-
-            if (httpResponseMessage.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                LOGGER.Debug("Authorization failed");
-                if (retries < 3)
-                {
-                    AuthType.Authenticate();
-                    retries++;
-                    LOGGER.Debug($"Retrying - attempt {retries}");
-                    post(resource, body);
-                }
-            }
-            retries = 0;
-
-            return httpResponseMessage;
+            throw new NotImplementedException();
         }
+        #endregion
 
-
-        public HttpResponseMessage put(string resource, string body)
+        #region Private methods
+        private void ConfigureClient()
         {
-            HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
-            StringContent queryString = new StringContent(body);
-            queryString.Headers.Clear();
-            queryString.Headers.Add("Content-Type", "application/json");
-
-
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri(BaseUrl);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                if (AuthType != null)
-                {
-                    client.DefaultRequestHeaders.Add("Authorization", AuthType.Authorization);
-                }
-                client.Timeout = new TimeSpan(0, 0, 30);
-                try
-                {
-                    httpResponseMessage = client.PutAsync(resource, queryString).Result;
-                }
-                catch (AggregateException ex)
-                {
-                    throw new HttpRequestException("Request timed out", ex);
-                }
-            }
-
-            if (httpResponseMessage.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                LOGGER.Debug("Authorization failed");
-                if (retries < 3)
-                {
-                    AuthType.Authenticate();
-                    retries++;
-                    LOGGER.Debug($"Retrying - attempt {retries}");
-                    put(resource, body);
-                }
-            }
-            retries = 0;
-
-            return httpResponseMessage;
+            httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri(Configuration.BaseUrl);
+            httpClient.DefaultRequestHeaders.Accept.Clear();
+            httpClient.DefaultRequestHeaders.Accept.Add(Configuration.MediaType);
+            httpClient.Timeout = new TimeSpan(0, 0, Configuration.Timeout);
+            httpClient.DefaultRequestHeaders.Authorization = Configuration.AuthType != null ? Configuration.AuthType.Authorization : null;
         }
-
-        public HttpResponseMessage delete(string resource)
-        {
-            LOGGER.Debug("deleting resource : " + resource);
-
-            HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri(BaseUrl);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                if (AuthType != null)
-                {
-                    client.DefaultRequestHeaders.Add("Authorization", AuthType.Authorization);
-                }
-                client.Timeout = new TimeSpan(0, 0, 30);
-
-                try
-                {
-                    httpResponseMessage = client.DeleteAsync(resource).Result;
-                }
-                catch (AggregateException ex)
-                {
-
-                    throw new HttpRequestException("Request timed out", ex);
-                }
-            }
-
-
-            if (httpResponseMessage.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                LOGGER.Debug("Authorization failed");
-                if (retries < 3)
-                {
-                    AuthType.Authenticate();
-                    retries++;
-                    LOGGER.Debug($"Retrying - attempt {retries}");
-                    get(resource);
-                }
-            }
-            retries = 0;
-
-            return httpResponseMessage;
-        }
-
-
-
-
-
-
+        #endregion
     }
 }
